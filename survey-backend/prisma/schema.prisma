@@ -1,0 +1,128 @@
+// Схема базы данных «Сервис опросов»
+// согласно ERD и ТЗ
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Роль пользователя.
+// Системный справочник: guest / user / admin.
+// Дефолтные записи создаются сидом.
+model Role {
+  role_id   Int    @id @default(autoincrement())
+  role_name String @unique
+
+  users User[]
+
+  @@map("role")
+}
+
+// Пользователь системы
+model User {
+  user_id       Int      @id @default(autoincrement())
+  nickname      String   @unique
+  email         String   @unique
+  password_hash String   // bcrypt-хеш
+  role_id       Int
+  created_at    DateTime @default(now())
+  is_active     Boolean  @default(true)
+
+  role           Role            @relation(fields: [role_id], references: [role_id])
+  surveys        Survey[]        @relation("SurveyCreator")
+  votes          Vote[]
+  participations Participation[]
+
+  @@map("user")
+}
+
+// Статус опроса
+enum SurveyStatus {
+  draft
+  active
+  completed
+}
+
+// Опрос
+model Survey {
+  survey_id         Int          @id @default(autoincrement())
+  creator_id        Int
+  title             String
+  short_description String?
+  full_description  String?
+  is_private        Boolean      @default(false)
+  password_hash     String?      // null, если опрос не приватный
+  is_anonymous      Boolean      @default(false)
+  status            SurveyStatus @default(draft)
+  deadline          DateTime?
+  created_at        DateTime     @default(now())
+  completed_at      DateTime?
+
+  creator        User            @relation("SurveyCreator", fields: [creator_id], references: [user_id])
+  questions      Question[]
+  participations Participation[]
+
+  @@map("survey")
+}
+
+// Вопрос опроса
+model Question {
+  question_id    Int     @id @default(autoincrement())
+  survey_id      Int
+  text           String
+  allow_multiple Boolean @default(false) // можно выбрать несколько вариантов
+  order_index    Int     @default(0)
+
+  survey  Survey   @relation(fields: [survey_id], references: [survey_id], onDelete: Cascade)
+  options Option[]
+
+  @@map("question")
+}
+
+// Вариант ответа (не более 10 на один вопрос — проверяется на уровне приложения)
+model Option {
+  option_id   Int    @id @default(autoincrement())
+  question_id Int
+  text        String
+  order_index Int    @default(0)
+
+  question Question @relation(fields: [question_id], references: [question_id], onDelete: Cascade)
+  votes    Vote[]
+
+  @@map("option")
+}
+
+// Голос пользователя за вариант ответа.
+// До нажатия «Завершить опрос» записи можно обновлять.
+// UNIQUE(user_id, option_id) — нельзя проголосовать за один вариант дважды.
+model Vote {
+  vote_id    Int      @id @default(autoincrement())
+  user_id    Int
+  option_id  Int
+  created_at DateTime @default(now())
+
+  user   User   @relation(fields: [user_id], references: [user_id])
+  option Option @relation(fields: [option_id], references: [option_id], onDelete: Cascade)
+
+  @@unique([user_id, option_id])
+  @@map("vote")
+}
+
+// Факт завершения прохождения опроса.
+// Запись появляется только после нажатия кнопки «Завершить опрос».
+model Participation {
+  participation_id Int      @id @default(autoincrement())
+  user_id          Int
+  survey_id        Int
+  completed_at     DateTime @default(now())
+
+  user   User   @relation(fields: [user_id], references: [user_id])
+  survey Survey @relation(fields: [survey_id], references: [survey_id], onDelete: Cascade)
+
+  @@unique([user_id, survey_id])
+  @@map("participation")
+}
