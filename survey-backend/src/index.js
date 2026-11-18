@@ -1,70 +1,23 @@
-// Точка входа сервера. Задача этого этапа — подтвердить,
-// что подключение к БД работает: /health опрашивает Postgres через Prisma.
-
 require("dotenv").config();
-const express = require("express");
+
+const app = require("./app");
+const config = require("./config");
 const prisma = require("./db");
+const { startDeadlineWatcher } = require("./services/deadlines");
 
-const app = express();
-app.use(express.json());
-
-const PORT = process.env.PORT || 3000;
-
-// Проверка, что сервер и БД живы.
-app.get("/health", async (req, res) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    res.json({ status: "ok", db: "connected" });
-  } catch (err) {
-    console.error("DB health check failed:", err);
-    res.status(500).json({ status: "error", db: "disconnected" });
-  }
+const server = app.listen(config.port, () => {
+  console.log(`Survey API listening on http://localhost:${config.port}`);
 });
 
-// Временные эндпоинты, чтобы визуально проверить тестовые данные.
-// Уберите или замените реальными роутами, когда дойдёте до следующих недель.
+startDeadlineWatcher();
 
-app.get("/users", async (req, res) => {
-  const users = await prisma.user.findMany({
-    include: { role: true },
+const shutdown = (signal) => {
+  console.log(`${signal} received, shutting down`);
+  server.close(async () => {
+    await prisma.$disconnect();
+    process.exit(0);
   });
-  res.json(users);
-});
+};
 
-app.get("/surveys", async (req, res) => {
-  const surveys = await prisma.survey.findMany({
-    include: {
-      creator: { select: { user_id: true, nickname: true, email: true } },
-      questions: {
-        include: { options: true },
-        orderBy: { order_index: "asc" },
-      },
-      _count: { select: { participations: true } },
-    },
-    orderBy: { created_at: "desc" },
-  });
-  res.json(surveys);
-});
-
-app.get("/surveys/:id", async (req, res) => {
-  const id = Number(req.params.id);
-  const survey = await prisma.survey.findUnique({
-    where: { survey_id: id },
-    include: {
-      creator: { select: { user_id: true, nickname: true } },
-      questions: {
-        include: { options: true },
-        orderBy: { order_index: "asc" },
-      },
-      participations: true,
-    },
-  });
-  if (!survey) {
-    return res.status(404).json({ error: "Survey not found" });
-  }
-  res.json(survey);
-});
-
-app.listen(PORT, () => {
-  console.log(`Survey backend listening on http://localhost:${PORT}`);
-});
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
