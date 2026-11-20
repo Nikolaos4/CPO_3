@@ -1,0 +1,30 @@
+/* Дизайн-токены: значения сняты с макетов. */
+:root {
+  --c-bg: #f2f9f5;
+  --c-surface: #ffffff;
+  --c-border: #ddeee5;
+  --c-text: #1c2b24;
+  --c-text-muted: #6b8077;
+  --c-primary: #3db280;
+  --c-primary-dark: #2a9468;
+  --c-primary-soft: #e3f6ec;
+  --c-primary-soft-2: #d0eedd;
+  --c-cover-from: #84d5ab;
+  --c-cover-to: #d3f1e1;
+  --c-warn-bg: #fef3c7;
+  --c-warn-text: #b45309;
+  --c-danger: #dc2626;
+  --c-danger-soft: #fdecec;
+  --c-gray-badge: #e6eee9;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 4px 20px rgba(42, 148, 104, 0.08);
+  --shadow-btn: 0 6px 16px rgba(61, 178, 128, 0.3);
+
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --sidebar-w: 260px;
+}
